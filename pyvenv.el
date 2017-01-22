@@ -176,6 +176,10 @@ This is usually the base name of `pyvenv-virtual-env'.")
   "Normalize DIRECTORY."
   (file-name-as-directory (expand-file-name directory)))
 
+(defun pyvenv-virtualenv-p (directory)
+  "Check if DIRECTORY is a virtualenv."
+  (file-exists-p (expand-file-name pyvenv-virtualenv-activate-script (pyvenv-bin-directory directory))))
+
 (defun pyvenv-untrampify-filename (file)
   "Return FILE as the local file name."
   (or (file-remote-p file 'localname) file))
@@ -257,37 +261,16 @@ This is usually the base name of `pyvenv-virtual-env'.")
 (defun pyvenv-workon (name)
   "Activate a virtual environment from $WORKON_HOME."
   (interactive
-   (list
-    (completing-read "Work on: " (pyvenv-virtualenv-list)
-                     nil t nil 'pyvenv-workon-history nil nil)))
-  (when (not (or (equal name "")
-                 ;; Some completion frameworks can return nil for the
-                 ;; default, see
-                 ;; https://github.com/jorgenschaefer/elpy/issues/144
-                 (equal name nil)))
-    (pyvenv-activate (format "%s/%s"
-                             pyvenv-workon-home
-                             name))))
+   (list (completing-read "Work on: " (pyvenv-virtualenv-list) nil t)))
+  (pyvenv-activate (expand-file-name name pyvenv-workon-home)))
 
-(defun pyvenv-virtualenv-list (&optional noerror)
-  "Prompt the user for a name in $WORKON_HOME.
+(defun pyvenv-virtualenv-list (&optional full)
+  "Prompt the user for a name in `venv-workon-home'.
 
-If NOERROR is set, do not raise an error if WORKON_HOME is not
-configured."
-  (let ((workon-home pyvenv-workon-home)
-        (result nil))
-    (if (not (file-directory-p workon-home))
-        (when (not noerror)
-          (error "Can't find a workon home directory, set $WORKON_HOME"))
-      (dolist (name (directory-files workon-home))
-        (when (or (file-exists-p (format "%s/%s/bin/activate"
-                                         workon-home name))
-                  (file-exists-p (format "%s/%s/Scripts/activate.bat"
-                                         workon-home name)))
-          (setq result (cons name result))))
-      (sort result (lambda (a b)
-                     (string-lessp (downcase a)
-                                   (downcase b)))))))
+If FULL is non nil will return the full path to virtualenvs."
+  (let* ((directories (directory-files pyvenv-workon-home 'full directory-files-no-dot-files-regexp))
+         (virtualenvs (seq-filter #'pyvenv-virtualenv-p directories)))
+    (if full virtualenvs (mapcar #'file-name-nondirectory virtualenvs))))
 
 (declare-function widget-copy "wid-edit")
 (declare-function widget-types-convert-widget "wid-edit")
@@ -301,14 +284,14 @@ configured."
                 :args (cons '(const :tag "None" nil)
                             (mapcar (lambda (env)
                                       (list 'const env))
-                                    (pyvenv-virtualenv-list t))))
+                                    (pyvenv-virtualenv-list))))
     (widget-types-convert-widget widget))
 
   :prompt-value (lambda (_widget prompt _value _unbound)
                   (let ((name (completing-read
                                prompt
                                (cons "None"
-                                     (pyvenv-virtualenv-list t))
+                                     (pyvenv-virtualenv-list))
                                nil t)))
                     (if (equal name "None")
                         nil
@@ -329,7 +312,7 @@ configured."
                                  :style 'radio
                                  :selected `(equal pyvenv-virtual-env-name
                                                    ,venv)))
-                       (pyvenv-virtualenv-list t))))
+                       (pyvenv-virtualenv-list))))
     ["Activate" pyvenv-activate
      :help "Activate a virtual environment by directory"]
     ["Deactivate" pyvenv-deactivate
