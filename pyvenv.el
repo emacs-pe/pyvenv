@@ -252,11 +252,11 @@ This is usually the base name of `pyvenv-virtual-env'.")
           (pyvenv-run-virtualenvwrapper-hook "post_deactivate"
                                              pyvenv-virtual-env)
         (setq exec-path old-exec-path
-              process-environment old-process-environment)))
-    (run-hooks 'pyvenv-post-deactivate-hooks))
+              process-environment old-process-environment))))
   (setq pyvenv-virtual-env nil
         pyvenv-virtual-env-name nil
-        pyvenv-shell-virtualenv nil))
+        pyvenv-shell-virtualenv nil)
+  (run-hooks 'pyvenv-post-deactivate-hooks))
 
 (defvar pyvenv-workon-history nil
   "Prompt history for `pyvenv-workon'.")
