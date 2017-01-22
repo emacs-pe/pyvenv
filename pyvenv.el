@@ -5,6 +5,7 @@
 ;; Author: Jorgen Schaefer <contact@jorgenschaefer.de>
 ;; URL: http://github.com/jorgenschaefer/pyvenv
 ;; Version: 1.9
+;; Package-Requires: ((emacs "25.1"))
 ;; Keywords: Python, Virtualenv, Tools
 
 ;; This program is free software; you can redistribute it and/or
@@ -35,6 +36,9 @@
 ;; `pyvenv-restart-python' to `pyvenv-post-activate-hooks'.
 
 ;;; Code:
+(eval-when-compile
+  (require 'cl-lib)
+  (require 'subr-x))
 
 (require 'json)
 (require 'python)
@@ -164,7 +168,6 @@ This is usually the base name of `pyvenv-virtual-env'.")
 (defun pyvenv-bin-directory (directory)
   "Return bin DIRECTORY for virtualenv."
   (expand-file-name pyvenv-virtualenv-bin directory))
-
 
 (defun pyvenv-normalize-directory (directory)
   "Normalize DIRECTORY."
@@ -421,20 +424,15 @@ CAREFUL! This will modify your `process-environment' and
                                           path-separator))))))))
 
 ;;;###autoload
-(defun pyvenv-restart-python ()
-  "Restart Python inferior processes."
+(cl-defun pyvenv-restart-python-buffer (&optional (buffer (current-buffer)))
+  "Restart Python inferior processes in BUFFER."
   (interactive)
-  (dolist (buf (buffer-list))
-    (with-current-buffer buf
-      (when (and (eq major-mode 'inferior-python-mode)
-                 (get-buffer-process buf))
-        (let ((cmd (combine-and-quote-strings (process-command
-                                               (get-buffer-process buf))))
-              (dedicated (if (string-match "\\[.*\\]$" (buffer-name buf))
-                             t
-                           nil))
-              (show nil))
-          (delete-process (get-buffer-process buf))
+  (if-let (process (get-buffer-process buffer))
+      (with-current-buffer buffer
+        (cl-assert (not (file-remote-p default-directory)) nil "`%s' does not support tramp shells yet" this-command)
+        (let ((cmd (combine-and-quote-strings (process-command process)))
+              (dedicated (string-match-p "\\[.*\\]\\*" (buffer-name))))
+          (delete-process process)
           (goto-char (point-max))
           (insert "\n\n"
                   "###\n"
@@ -442,8 +440,19 @@ CAREFUL! This will modify your `process-environment' and
                           pyvenv-virtual-env-name pyvenv-virtual-env)
                   "###\n"
                   "\n\n")
-          (run-python cmd dedicated show)
-          (goto-char (point-max)))))))
+          (cl-letf (((symbol-function #'python-shell-get-process-name)
+                     (lambda (_dedicated) (string-remove-prefix "*" (string-remove-suffix "*" (buffer-name))))))
+            (run-python cmd dedicated))
+          (goto-char (point-max))))
+    (user-error "Not process associated to buffer %S" buffer)))
+
+;;;###autoload
+(defun pyvenv-restart-python ()
+  "Restart all the Python inferior processes."
+  (interactive)
+  (dolist (buffer (buffer-list))
+    (and (eq (buffer-local-value 'major-mode buffer) 'inferior-python-mode)
+         (pyvenv-restart-python-buffer buffer))))
 
 (defun pyvenv-hook-dir ()
   "Return the current hook directory.
