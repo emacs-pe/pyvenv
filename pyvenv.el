@@ -184,6 +184,10 @@ This is usually the base name of `pyvenv-virtual-env'.")
   "Return FILE as the local file name."
   (or (file-remote-p file 'localname) file))
 
+(defun pyvenv-module-installed-p (modname)
+  "Check if python module MODNAME is installed."
+  (zerop (process-file python-shell-interpreter nil nil nil "-c" (format "import %s" modname))))
+
 ;;;###autoload
 (defun pyvenv-activate (directory)
   "Activate the virtual environment in DIRECTORY."
@@ -379,7 +383,7 @@ environment accordingly.
 
 CAREFUL! This will modify your `process-environment' and
 `exec-path'."
-  (when (pyvenv-hook-dir)
+  (when (pyvenv-module-installed-p "virtualenvwrapper")
     (with-temp-buffer
       (let ((tmpfile (make-temp-file "pyvenv-virtualenvwrapper-")))
         (unwind-protect
@@ -452,15 +456,6 @@ CAREFUL! This will modify your `process-environment' and
   (dolist (buffer (buffer-list))
     (and (eq (buffer-local-value 'major-mode buffer) 'inferior-python-mode)
          (pyvenv-restart-python-buffer buffer))))
-
-(defun pyvenv-hook-dir ()
-  "Return the current hook directory.
-
-This is usually the value of $VIRTUALENVWRAPPER_HOOK_DIR, but
-virtualenvwrapper has stopped exporting that variable, so we go
-back to the default of $WORKON_HOME or even just ~/.virtualenvs/."
-  (or (getenv "VIRTUALENVWRAPPER_HOOK_DIR")
-      pyvenv-workon-home))
 
 (provide 'pyvenv)
 ;;; pyvenv.el ends here
