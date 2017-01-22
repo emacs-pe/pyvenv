@@ -153,6 +153,9 @@ This is usually the base name of `pyvenv-virtual-env'.")
 (defvar pyvenv-old-exec-path nil
   "The old exec path before the last activate.")
 
+(defvar pyvenv-old-tramp-remote-path nil
+  "The old process environment before the last activate.")
+
 (defvaralias 'pyvenv-shell-virtualenv (if (boundp 'python-shell-virtualenv-root)
                                           'python-shell-virtualenv-root
                                         'python-shell-virtualenv-path)
@@ -172,6 +175,10 @@ This is usually the base name of `pyvenv-virtual-env'.")
 (defun pyvenv-normalize-directory (directory)
   "Normalize DIRECTORY."
   (file-name-as-directory (expand-file-name directory)))
+
+(defun pyvenv-untrampify-filename (file)
+  "Return FILE as the local file name."
+  (or (file-remote-p file 'localname) file))
 
 ;;;###autoload
 (defun pyvenv-activate (directory)
@@ -206,6 +213,9 @@ This is usually the base name of `pyvenv-virtual-env'.")
                               "PYTHONHOME")
                              process-environment)
         )
+  (when (file-remote-p pyvenv-virtual-env)
+    (setq pyvenv-old-tramp-remote-path tramp-remote-path
+          tramp-remote-path (cons (pyvenv-bin-directory (pyvenv-untrampify-filename pyvenv-virtual-env)) tramp-remote-path)))
   (pyvenv-run-virtualenvwrapper-hook "post_activate")
   (run-hooks 'pyvenv-post-activate-hooks))
 
@@ -222,6 +232,9 @@ This is usually the base name of `pyvenv-virtual-env'.")
   (when pyvenv-old-exec-path
     (setq exec-path pyvenv-old-exec-path
           pyvenv-old-exec-path nil))
+  (when pyvenv-old-tramp-remote-path
+    (setq tramp-remote-path pyvenv-old-tramp-remote-path
+          pyvenv-old-tramp-remote-path nil))
   (when pyvenv-virtual-env
     ;; Make sure this does not change `exec-path', as $PATH is
     ;; different
