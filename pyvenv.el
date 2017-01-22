@@ -37,6 +37,7 @@
 ;;; Code:
 
 (require 'json)
+(require 'python)
 
 ;; User customization
 
@@ -148,17 +149,36 @@ This is usually the base name of `pyvenv-virtual-env'.")
 (defvar pyvenv-old-exec-path nil
   "The old exec path before the last activate.")
 
+(defvaralias 'pyvenv-shell-virtualenv (if (boundp 'python-shell-virtualenv-root)
+                                          'python-shell-virtualenv-root
+                                        'python-shell-virtualenv-path)
+  "Alias to `python.el' virtualenv variable.")
+
+(defvar pyvenv-virtualenv-bin (if (eq system-type 'windows-nt)
+                                  "Scripts"
+                                "bin"))
+(defvar pyvenv-virtualenv-activate-script (if (eq system-type 'windows-nt)
+                                              "activate.bat"
+                                            "activate"))
+
+(defun pyvenv-bin-directory (directory)
+  "Return bin DIRECTORY for virtualenv."
+  (expand-file-name pyvenv-virtualenv-bin directory))
+
+
+(defun pyvenv-normalize-directory (directory)
+  "Normalize DIRECTORY."
+  (file-name-as-directory (expand-file-name directory)))
+
 ;;;###autoload
 (defun pyvenv-activate (directory)
   "Activate the virtual environment in DIRECTORY."
   (interactive "DActivate venv: ")
   (setq directory (expand-file-name directory))
   (pyvenv-deactivate)
-  (setq pyvenv-virtual-env (file-name-as-directory directory)
-        pyvenv-virtual-env-name (file-name-nondirectory
-                                 (directory-file-name directory))
-        python-shell-virtualenv-path directory
-        python-shell-virtualenv-root directory)
+  (setq pyvenv-virtual-env (pyvenv-normalize-directory directory)
+        pyvenv-virtual-env-name (file-name-nondirectory (directory-file-name pyvenv-virtual-env))
+        pyvenv-shell-virtualenv pyvenv-virtual-env)
   ;; Preserve variables from being overwritten.
   (let ((old-exec-path exec-path)
         (old-process-environment process-environment))
@@ -171,17 +191,10 @@ This is usually the base name of `pyvenv-virtual-env'.")
         pyvenv-old-process-environment process-environment
         ;; For some reason, Emacs adds some directories to `exec-path'
         ;; but not to `process-environment'?
-        exec-path (append
-                   ;; Unix
-                   (when (file-exists-p (format "%s/bin" directory))
-                     (list (format "%s/bin" directory)))
-                   ;; Windows
-                   (when (file-exists-p (format "%s/Scripts" directory))
-                     (list (format "%s/Scripts" directory)))
-                   exec-path)
+        exec-path (cons (pyvenv-bin-directory pyvenv-virtual-env) exec-path)
         process-environment (append
                              (list
-                              (format "VIRTUAL_ENV=%s" directory)
+                              (format "VIRTUAL_ENV=%s" pyvenv-virtual-env)
                               (format "PATH=%s" (mapconcat (lambda (x)
                                                              (or x "."))
                                                            exec-path
@@ -219,8 +232,7 @@ This is usually the base name of `pyvenv-virtual-env'.")
     (run-hooks 'pyvenv-post-deactivate-hooks))
   (setq pyvenv-virtual-env nil
         pyvenv-virtual-env-name nil
-        python-shell-virtualenv-root nil
-        python-shell-virtualenv-path nil))
+        pyvenv-shell-virtualenv nil))
 
 (defvar pyvenv-workon-history nil
   "Prompt history for `pyvenv-workon'.")
