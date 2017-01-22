@@ -45,6 +45,15 @@
   :prefix "pyvenv-"
   :group 'languages)
 
+(defcustom pyvenv-workon-home (or (getenv "WORKON_HOME")
+                                  (expand-file-name "~/.virtualenvs"))
+  "Directory containing virtualenvs.
+
+This is the value of $WORKON_HOME or ~/.virtualenvs."
+  :type '(directory :must-match t)
+  :safe #'file-directory-p
+  :group 'pyvenv)
+
 (defcustom pyvenv-workon nil
   "The intended virtualenv in the virtualenvwrapper directory.
 
@@ -229,7 +238,7 @@ This is usually the base name of `pyvenv-virtual-env'.")
                  ;; https://github.com/jorgenschaefer/elpy/issues/144
                  (equal name nil)))
     (pyvenv-activate (format "%s/%s"
-                             (pyvenv-workon-home)
+                             pyvenv-workon-home
                              name))))
 
 (defun pyvenv-virtualenv-list (&optional noerror)
@@ -237,7 +246,7 @@ This is usually the base name of `pyvenv-virtual-env'.")
 
 If NOERROR is set, do not raise an error if WORKON_HOME is not
 configured."
-  (let ((workon-home (pyvenv-workon-home))
+  (let ((workon-home pyvenv-workon-home)
         (result nil))
     (if (not (file-directory-p workon-home))
         (when (not noerror)
@@ -431,14 +440,7 @@ This is usually the value of $VIRTUALENVWRAPPER_HOOK_DIR, but
 virtualenvwrapper has stopped exporting that variable, so we go
 back to the default of $WORKON_HOME or even just ~/.virtualenvs/."
   (or (getenv "VIRTUALENVWRAPPER_HOOK_DIR")
-      (pyvenv-workon-home)))
-
-(defun pyvenv-workon-home ()
-  "Return the current workon home.
-
-This is the value of $WORKON_HOME or ~/.virtualenvs."
-  (or (getenv "WORKON_HOME")
-      (expand-file-name "~/.virtualenvs")))
+      pyvenv-workon-home))
 
 ;;; Compatibility
 
