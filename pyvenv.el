@@ -289,6 +289,9 @@ configured."
                      (string-lessp (downcase a)
                                    (downcase b)))))))
 
+(declare-function widget-copy "wid-edit")
+(declare-function widget-types-convert-widget "wid-edit")
+
 (define-widget 'pyvenv-workon 'choice
   "Select an available virtualenv from virtualenvwrapper."
   :convert-widget
@@ -301,7 +304,7 @@ configured."
                                     (pyvenv-virtualenv-list t))))
     (widget-types-convert-widget widget))
 
-  :prompt-value (lambda (widget prompt value unbound)
+  :prompt-value (lambda (_widget prompt _value _unbound)
                   (let ((name (completing-read
                                prompt
                                (cons "None"
