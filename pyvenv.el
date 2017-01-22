@@ -476,28 +476,5 @@ back to the default of $WORKON_HOME or even just ~/.virtualenvs/."
   (or (getenv "VIRTUALENVWRAPPER_HOOK_DIR")
       pyvenv-workon-home))
 
-;;; Compatibility
-
-(when (not (fboundp 'file-name-base))
-  ;; Emacs 24.3
-  (defun file-name-base (&optional filename)
-    "Return the base name of the FILENAME: no directory, no extension.
-FILENAME defaults to `buffer-file-name'."
-    (file-name-sans-extension
-     (file-name-nondirectory (or filename (buffer-file-name)))))
-  )
-
-(when (not (boundp 'mode-line-misc-info))
-  (defvar mode-line-misc-info nil
-    "Compatibility variable for 24.3+")
-  (let ((line mode-line-format))
-    (while line
-      (when (eq 'which-func-mode
-                (car-safe (car-safe (cdr line))))
-        (setcdr line (cons 'mode-line-misc-format
-                           (cdr line)))
-        (setq line (cdr line)))
-      (setq line (cdr line)))))
-
 (provide 'pyvenv)
 ;;; pyvenv.el ends here
