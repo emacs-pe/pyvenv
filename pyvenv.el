@@ -43,6 +43,15 @@
 (require 'json)
 (require 'python)
 
+(eval-and-compile
+  (unless (fboundp 'file-local-name)
+    ;; Available since 25.2
+    (defun file-local-name (file)
+      "Return the local name component of FILE.
+It returns a file name which can be used directly as argument of
+`process-file', `start-file-process', or `shell-command'."
+      (or (file-remote-p file 'localname) file))))
+
 ;; User customization
 
 (defgroup pyvenv nil
@@ -180,10 +189,6 @@ This is usually the base name of `pyvenv-virtual-env'.")
   "Check if DIRECTORY is a virtualenv."
   (file-exists-p (expand-file-name pyvenv-virtualenv-activate-script (pyvenv-bin-directory directory))))
 
-(defun pyvenv-untrampify-filename (file)
-  "Return FILE as the local file name."
-  (or (file-remote-p file 'localname) file))
-
 (defun pyvenv-module-installed-p (modname)
   "Check if python module MODNAME is installed."
   (zerop (process-file python-shell-interpreter nil nil nil "-c" (format "import %s" modname))))
@@ -192,7 +197,6 @@ This is usually the base name of `pyvenv-virtual-env'.")
 (defun pyvenv-activate (directory)
   "Activate the virtual environment in DIRECTORY."
   (interactive "DActivate venv: ")
-  (setq directory (expand-file-name directory))
   (pyvenv-deactivate)
   (setq pyvenv-virtual-env (pyvenv-normalize-directory directory)
         pyvenv-virtual-env-name (file-name-nondirectory (directory-file-name pyvenv-virtual-env))
@@ -223,7 +227,7 @@ This is usually the base name of `pyvenv-virtual-env'.")
         )
   (when (file-remote-p pyvenv-virtual-env)
     (setq pyvenv-old-tramp-remote-path tramp-remote-path
-          tramp-remote-path (cons (pyvenv-bin-directory (pyvenv-untrampify-filename pyvenv-virtual-env)) tramp-remote-path)))
+          tramp-remote-path (cons (pyvenv-bin-directory (file-local-name pyvenv-virtual-env)) tramp-remote-path)))
   (pyvenv-run-virtualenvwrapper-hook "post_activate")
   (run-hooks 'pyvenv-post-activate-hooks))
 
