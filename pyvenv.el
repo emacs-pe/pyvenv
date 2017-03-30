@@ -104,6 +104,11 @@ is active, after every command."
   :type 'boolean
   :group 'pyvenv)
 
+(defcustom pyvenv-use-variable-watcher (fboundp #'add-variable-watcher)
+  "Whether to use variable watchers to setup pyvenv variables."
+  :type 'boolean
+  :group 'pyvenv)
+
 (defcustom pyvenv-virtualenvwrapper-python
   (or (getenv "VIRTUALENVWRAPPER_PYTHON")
       (executable-find "python")
@@ -330,6 +335,21 @@ If FULL is non nil will return the full path to virtualenvs."
     ["Restart Python Processes" pyvenv-restart-python
      :help "Restart all Python processes to use the current environment"]))
 
+(defun pyvenv-variable-watcher (symbol newval operation _where)
+  "Variable watcher for pyvenv.
+
+SYMBOL, NEWVAL, OPERATION, and WHERE"
+  (cl-case operation
+    (set (cl-case symbol
+           (pyvenv-activate (and (not (string= (pyvenv-normalize-directory newval) pyvenv-virtual-env))
+                                 (or (not pyvenv-tracking-ask-before-change)
+                                     (y-or-n-p (format "Switch to virtualenv %s (currently %s)? " newval pyvenv-virtual-env)))
+                                 (pyvenv-activate newval)))
+           (pyvenv-workon (and (not (string= newval pyvenv-virtual-env-name))
+                               (or (not pyvenv-tracking-ask-before-change)
+                                   (y-or-n-p (format "Switch to virtualenv %s (currently %s)? " newval pyvenv-virtual-env-name)))
+                               (pyvenv-workon newval)))))))
+
 ;;;###autoload
 (define-minor-mode pyvenv-mode
   "Global minor mode for pyvenv.
@@ -340,11 +360,17 @@ Will show the current virtualenv in the mode line, and respect a
   (cond
    (pyvenv-mode
     (add-to-list 'mode-line-misc-info '(pyvenv-mode pyvenv-mode-line-indicator))
-    (add-hook 'hack-local-variables-hook #'pyvenv-track-virtualenv))
+    (if (and pyvenv-use-variable-watcher (fboundp #'add-variable-watcher))
+        (dolist (symbol '(pyvenv-workon pyvenv-activate))
+          (add-variable-watcher symbol #'pyvenv-variable-watcher))
+      (add-hook 'hack-local-variables-hook #'pyvenv-track-virtualenv)))
    ((not pyvenv-mode)
     (setq mode-line-misc-info (delete '(pyvenv-mode pyvenv-mode-line-indicator)
                                       mode-line-misc-info))
-    (remove-hook 'hack-local-variables-hook #'pyvenv-track-virtualenv))))
+    (if (and pyvenv-use-variable-watcher (fboundp #'remove-variable-watcher))
+        (dolist (symbol '(pyvenv-workon pyvenv-activate))
+          (remove-variable-watcher symbol #'pyvenv-variable-watcher))
+      (remove-hook 'hack-local-variables-hook #'pyvenv-track-virtualenv)))))
 
 ;;;###autoload
 (define-minor-mode pyvenv-tracking-mode
