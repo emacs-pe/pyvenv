@@ -182,13 +182,13 @@ This is usually the base name of `pyvenv-virtual-env'.")
                                               "activate.bat"
                                             "activate"))
 
-(defun pyvenv-bin-directory (directory)
-  "Return bin DIRECTORY for virtualenv."
-  (expand-file-name pyvenv-virtualenv-bin directory))
+(defun pyvenv-normalize-directory (file-name &optional directory)
+  "Normalize FILE-NAME relative to DIRECTORY."
+  (file-name-as-directory (expand-file-name file-name directory)))
 
-(defun pyvenv-normalize-directory (directory)
-  "Normalize DIRECTORY."
-  (file-name-as-directory (expand-file-name directory)))
+(defun pyvenv-bin-directory (directory)
+  "Return the bin path from a virtualenv DIRECTORY."
+  (pyvenv-normalize-directory pyvenv-virtualenv-bin directory))
 
 (defun pyvenv-virtualenv-p (directory)
   "Check if DIRECTORY is a virtualenv."
