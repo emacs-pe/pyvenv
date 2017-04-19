@@ -222,9 +222,10 @@ This is usually the base name of `pyvenv-virtual-env'.")
         process-environment (append
                              (list
                               (format "VIRTUAL_ENV=%s" pyvenv-virtual-env)
-                              (format "PATH=%s" (mapconcat (lambda (x)
-                                                             (or x "."))
-                                                           exec-path
+                              (format "PATH=%s" (mapconcat 'identity
+                                                           (cons (pyvenv-bin-directory pyvenv-virtual-env)
+                                                                 (split-string (getenv "PATH")
+                                                                               path-separator))
                                                            path-separator))
                               ;; No "=" means to unset
                               "PYTHONHOME")
